@@ -1,4 +1,5 @@
-##Currently is filled with book code
+#Sophia Test Code
+#Code taken from book and edited slightly
 
 #Remember to set your working directory to the one the data is stored
 # in before running the rest of the code
@@ -53,6 +54,3 @@ head(data)
 #look at levels
 clen <- function(x){c(length(x))}
 etable<- summaryBy(Impressions~scode+Gender+agecat, data=data, FUN=clen)
-
-
-
