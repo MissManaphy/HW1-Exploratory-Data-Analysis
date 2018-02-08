@@ -1,56 +1,77 @@
-#Sophia Test Code
-#Code taken from book and edited slightly
+#Sophia Anderson
+#Feburary 7, 2018
+#Topic: Intro to Data Science
 
 #Remember to set your working directory to the one the data is stored
 # in before running the rest of the code
-
-#Reading in the data
 setwd("~/Desktop/2017-2018/Second Semester/Intro to Data Science/Labs/HW1-Exploratory-Data-Analysis/HW1_data")
-data <- read.csv('nyt1.csv')
+##Run this line!
 
-#catagorize
-head(data)
-data$agecat <- cut(data$Age, c(0,15,20,30,40,50,60,70,80,90))
 
-#view
-summary(data)
+##Some resources
+###https://www.statmethods.net/advgraphs/layout.html
+#https://www.statmethods.net/graphs/bar.html
+#https://www.datacamp.com/community/tutorials/make-histogram-basic-r
+#http://homepage.divms.uiowa.edu/~luke/classes/STAT4580/histdens.html
 
-#brackets
-install.packages("doBy")
-library("doBy")
-siterange <- function(x){c(length(x), min(x), mean(x), max(x))}
-summaryBy(Age~agecat, data=data, FUN=siterange) #FUN = functions to be applied
 
-#so only signed users have ages and genders
-summaryBy(Gender+Signed_In+Impressions+Clicks~agecat, data = data)
+datalist <- list() #For loop from Ariel T.; loads in all data from all days into one dataset
+for (i in 1:31){
+  datapoint <- read.csv(paste0("nyt",toString(i),".csv"))
+  datalist[[i]]<-datapoint 
+} 
 
-#plot
-install.packages("ggplot2")
+finalset <- data.frame(matrix(ncol = 5, nrow = 77)) #the table
+colnames(finalset) <- c("Age", "Clicks", "Impressions", "CpI", "Total") #col names
+finalset$Age <- 14:90#all the relevant ages
+finalset$Clicks <- finalset$Impressions <- finalset$Total <- 0 
+#sets all other columns i need to do math in to 0 so the functions work
+finalset[1,1] <- 0 # sets the first age to "0" to symbolize the unidentifies cohort
+
+for (x in 1:31) #Goes through all the days of data we have 
+{
+  placeholder <- datalist[[x]] #snags one day worth of data
+  placeholder <- placeholder[which(placeholder$Impressions > 0),] 
+  #takes out all the people who didn't see ads in the first place
+  
+  for (y in 1:nrow(finalset)) #for each age we think is relevant
+  {
+    if (finalset[y,1] > 0) #and if the age we're working with isn't 0
+    {
+      test <- placeholder[which(placeholder$Age == y+13),] 
+      #create a table of all data for that specific age group 
+      #the plus 13 is becasue i'm working off the the row number 
+      #and the lowest age I have is 15 (y begins at 2 because the 1 case is age "0")
+      finalset[y,3] <- finalset[y,3] + sum(test$Impressions)
+      finalset[y,2] <- finalset[y,2] + sum(test$Clicks)
+      finalset[y,5] <- finalset[y,5] + nrow(test)
+    }
+    else #only triggers once to get all of the "unidentified" ages
+    {
+      test <- placeholder[which(placeholder$Age < 15),]
+      test2 <- placeholder[which(placeholder$Age > 90),]
+
+      finalset[y,3] <- finalset[y,3] + sum(test$Impressions) + sum(test2$Impressions)
+      finalset[y,2] <- finalset[y,2] + sum(test$Clicks) + sum(test2$Clicks)
+      finalset[y,5] <- finalset[y,5] + nrow(test) + nrow(test2)
+    }
+  }
+}
+sum(finalset$Total) # gives total number of data points collected
+
+
+for(v in 1:nrow(finalset)) # doing final calculations for each row
+{
+  finalset[v,4] <- finalset[v,2]/finalset[v,3]
+  #finalset[v,4] <- finalset[v,4]/finalset[v,5] uncomment this if you want CpI per capita
+}
+
+
 library(ggplot2)
-ggplot(data, aes(x=Clicks/Impressions, fill=agecat)) + geom_histogram(binwidth=1)
-#sort of a heat map identifying the number of impressions, age group, and then the 
-#number of people in that age group with that many impressions
-ggplot(data, aes(x=agecat, y=Impressions, fill=agecat)) + geom_boxplot()
+ggplot(finalset, aes(y = CpI, x = Age)) +
+  geom_bar(stat = "identity", color = "black", fill = "gray80", width = 0.8) 
 
-#create click thru rate
-#we don't care about the clicks if there are no impressions
-#if there are clicks with no impressions, my assumptions about this data are wrong
-data$hasimps <- cut(data$Impressions, c(-Inf, 0, Inf))
-summaryBy(Clicks~hasimps, data = data, FUN = siterange) 
-ggplot(subset(data, Impressions>0), aes(x=Clicks/Impressions, colour = agecat)) + geom_density()
-ggplot(subset(data, Clicks>0), aes(x=Clicks/Impressions, colour = agecat)) + geom_density()
-ggplot(subset(data, Clicks>0), aes(x=agecat, y=Clicks, fill = agecat)) + geom_density()
-ggplot(subset(data, Clicks>0), aes(x=Clicks, colour = agecat)) + geom_density()
 
-#create catagories
-data$scode[data$Impressions==0] <- "NoImps"
-data$scode[data$Impressions>0] <- "Imps"
-data$scode[data$Clicks>0] <- "Clicks"
 
-#Convert the column to a factor
-data$scode <- factor(data$scode)
-head(data)
 
-#look at levels
-clen <- function(x){c(length(x))}
-etable<- summaryBy(Impressions~scode+Gender+agecat, data=data, FUN=clen)
+
